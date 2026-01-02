@@ -2,6 +2,7 @@
 
 import { deleteUser } from '@/app/actions';
 import { useState } from 'react';
+import Spinner from './Spinner';
 
 export default function DeleteUserButton({ userId }: { userId: number }) {
     const [isDeleting, setIsDeleting] = useState(false);
@@ -31,8 +32,9 @@ export default function DeleteUserButton({ userId }: { userId: number }) {
             <button
                 type="submit"
                 disabled={isDeleting}
-                className={`text-red-500 hover:text-red-700 text-xs font-semibold px-2 py-1 border border-red-200 rounded hover:bg-red-50 ${isDeleting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`text-red-500 hover:text-red-700 text-xs font-semibold px-2 py-1 border border-red-200 rounded hover:bg-red-50 flex items-center gap-1 ${isDeleting ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
+                {isDeleting && <Spinner className="h-3 w-3" />}
                 {isDeleting ? 'Deleting...' : 'Delete'}
             </button>
         </form>

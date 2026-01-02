@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { createUser } from '@/app/actions';
 import DeleteUserButton from '@/components/DeleteUserButton';
+import SubmitButton from '@/components/SubmitButton';
 
 const prisma = new PrismaClient();
 
@@ -70,9 +71,9 @@ export default async function AdminUsersPage() {
                                 </select>
                                 <p className="text-xs text-gray-500 mt-1">Only required if Role is 'Representative'</p>
                             </div>
-                            <button type="submit" className="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 font-medium">
+                            <SubmitButton className="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 font-medium" loadingText="Creating User...">
                                 Create User
-                            </button>
+                            </SubmitButton>
                         </form>
                     </div>
 

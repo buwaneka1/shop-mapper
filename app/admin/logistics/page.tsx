@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { createLorry, createRoute, updateLorry, updateRoute } from '@/app/actions';
 import DeleteLorryButton from '@/components/DeleteLorryButton';
 import DeleteRouteButton from '@/components/DeleteRouteButton';
+import SubmitButton from '@/components/SubmitButton';
 import Link from 'next/link';
 
 const prisma = new PrismaClient();
@@ -78,9 +79,12 @@ export default async function AdminLogisticsPage({ searchParams }: { searchParam
                                     </select>
                                 </div>
                                 <div className="flex gap-2">
-                                    <button type="submit" className={`flex-1 text-white py-2 rounded font-medium ${editingLorry ? 'bg-orange-600 hover:bg-orange-700' : 'bg-indigo-600 hover:bg-indigo-700'}`}>
+                                    <SubmitButton
+                                        className={`flex-1 text-white py-2 rounded font-medium ${editingLorry ? 'bg-orange-600 hover:bg-orange-700' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+                                        loadingText={editingLorry ? 'Updating...' : 'Creating...'}
+                                    >
                                         {editingLorry ? 'Update Lorry' : 'Create Lorry'}
-                                    </button>
+                                    </SubmitButton>
                                     {editingLorry && (
                                         <Link href="/admin/logistics" className="px-4 py-2 border rounded text-gray-600 hover:bg-gray-100">
                                             Cancel
@@ -165,9 +169,12 @@ export default async function AdminLogisticsPage({ searchParams }: { searchParam
                                     </select>
                                 </div>
                                 <div className="flex gap-2">
-                                    <button type="submit" className={`flex-1 text-white py-2 rounded font-medium ${editingRoute ? 'bg-orange-600 hover:bg-orange-700' : 'bg-teal-600 hover:bg-teal-700'}`}>
+                                    <SubmitButton
+                                        className={`flex-1 text-white py-2 rounded font-medium ${editingRoute ? 'bg-orange-600 hover:bg-orange-700' : 'bg-teal-600 hover:bg-teal-700'}`}
+                                        loadingText={editingRoute ? 'Updating...' : 'Creating...'}
+                                    >
                                         {editingRoute ? 'Update Route' : 'Create Route'}
-                                    </button>
+                                    </SubmitButton>
                                     {editingRoute && (
                                         <Link href="/admin/logistics" className="px-4 py-2 border rounded text-gray-600 hover:bg-gray-100">
                                             Cancel

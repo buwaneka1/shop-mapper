@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Spinner from './Spinner';
 
 type Route = {
     id: number;
@@ -112,8 +113,9 @@ export default function ShopForm({ routes, selectedLocation, onLocationRequest, 
             <button
                 type="submit"
                 disabled={isSubmitting || !selectedLocation}
-                className={`w-full text-white py-2 rounded ${isSubmitting || !selectedLocation ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                className={`w-full text-white py-2 rounded flex items-center justify-center gap-2 ${isSubmitting || !selectedLocation ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
             >
+                {isSubmitting && <Spinner />}
                 {isSubmitting ? 'Saving...' : 'Save Shop'}
             </button>
         </form>

@@ -2,6 +2,7 @@
 
 import { useActionState } from 'react';
 import { loginAction } from '@/app/actions';
+import SubmitButton from './SubmitButton';
 
 type Territory = {
     id: number;
@@ -39,9 +40,9 @@ export default function LoginForm({ territories }: { territories: Territory[] })
                 <label className="block text-sm font-medium text-gray-700">Password</label>
                 <input name="password" type="password" required className="mt-1 block w-full border rounded p-2" />
             </div>
-            <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">
+            <SubmitButton className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 font-medium" loadingText="Signing in...">
                 Sign In
-            </button>
+            </SubmitButton>
         </form>
     );
 }
