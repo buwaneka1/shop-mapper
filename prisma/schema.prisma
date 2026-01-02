@@ -1,0 +1,55 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id       Int     @id @default(autoincrement())
+  username String  @unique
+  password String
+  role     String  // "ADMIN" | "REP" | "VIEWER"
+  lorryId  Int?
+  lorry    Lorry?  @relation(fields: [lorryId], references: [id])
+}
+
+model Territory {
+  id      Int     @id @default(autoincrement())
+  name    String  @unique
+  lorries Lorry[]
+}
+
+model Lorry {
+  id          Int       @id @default(autoincrement())
+  name        String
+  routes      Route[]
+  users       User[]
+  territoryId Int
+  territory   Territory @relation(fields: [territoryId], references: [id])
+}
+
+model Route {
+  id      Int    @id @default(autoincrement())
+  name    String
+  lorryId Int
+  lorry   Lorry  @relation(fields: [lorryId], references: [id])
+  shops   Shop[]
+}
+
+model Shop {
+  id            Int     @id @default(autoincrement())
+  name          String
+  description   String?
+  ownerName     String
+  contactNumber String
+  paymentMethod String  @default("CASH") // "CASH", "CREDIT", "CHEQUE"
+  avgBillValue  Float   @default(0)
+  imageUrl      String? // Path to stored image
+  latitude      Float
+  longitude     Float
+  routeId       Int
+  route         Route   @relation(fields: [routeId], references: [id])
+}
