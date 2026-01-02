@@ -3,6 +3,8 @@ import LoginForm from '@/components/LoginForm';
 
 import AnimatedBackground from '@/components/AnimatedBackground';
 
+export const dynamic = 'force-dynamic';
+
 const prisma = new PrismaClient();
 
 export default async function LoginPage() {
