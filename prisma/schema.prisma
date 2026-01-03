@@ -45,11 +45,19 @@ model Shop {
   description   String?
   ownerName     String
   contactNumber String
-  paymentMethod String  @default("CASH") // "CASH", "CREDIT", "CHEQUE"
-  avgBillValue  Float   @default(0)
-  imageUrl      String? // Path to stored image
+  paymentMethod String        @default("CASH") // "CASH", "CREDIT", "CHEQUE"
+  creditPeriod  Int?          // 7, 14, 21 (Only if paymentMethod is CREDIT)
+  paymentStatus PaymentStatus @default(ON_TIME)
+  avgBillValue  Float         @default(0)
+  imageUrl      String?       // Path to stored image
   latitude      Float
   longitude     Float
   routeId       Int
-  route         Route   @relation(fields: [routeId], references: [id])
+  route         Route         @relation(fields: [routeId], references: [id])
+}
+
+enum PaymentStatus {
+  ON_TIME
+  DELAYED
+  EXTREMELY_DELAYED
 }

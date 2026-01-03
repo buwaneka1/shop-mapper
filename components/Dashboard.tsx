@@ -17,6 +17,8 @@ type Shop = {
     contactNumber?: string;
     routeId: number;
     paymentMethod: string;
+    creditPeriod?: number | null;
+    paymentStatus: 'ON_TIME' | 'DELAYED' | 'EXTREMELY_DELAYED';
     avgBillValue: number;
     imageUrl?: string | null;
 };
@@ -117,6 +119,14 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
             case 'CREDIT': return 'bg-yellow-100 text-yellow-800';
             case 'CHEQUE': return 'bg-purple-100 text-purple-800';
             default: return 'bg-green-100 text-green-800'; // CASH
+        }
+    };
+
+    const getStatusColor = (status: string) => {
+        switch (status) {
+            case 'DELAYED': return 'bg-yellow-500';
+            case 'EXTREMELY_DELAYED': return 'bg-red-500';
+            default: return 'bg-green-500'; // ON_TIME
         }
     };
 
@@ -265,7 +275,10 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
                                                     className="bg-white p-4 rounded-lg shadow hover:shadow-md transition-shadow cursor-pointer border border-gray-200"
                                                 >
                                                     <div className="flex justify-between items-start">
-                                                        <h3 className="font-bold text-lg text-gray-900">{shop.name}</h3>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className={`w-3 h-3 rounded-full ${getStatusColor(shop.paymentStatus)} shrink-0`} title={shop.paymentStatus.replace('_', ' ')} />
+                                                            <h3 className="font-bold text-lg text-gray-900">{shop.name}</h3>
+                                                        </div>
                                                         <span className={`text-xs px-2 py-0.5 rounded font-medium ${getPaymentColor(shop.paymentMethod)}`}>
                                                             {shop.paymentMethod}
                                                         </span>
@@ -341,8 +354,20 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
                                                 </div>
                                                 <div className="flex justify-between border-b pb-2">
                                                     <span className="text-gray-600">Payment</span>
-                                                    <span className={`font-medium px-2 py-0.5 rounded text-sm ${getPaymentColor(selectedShop.paymentMethod)}`}>
-                                                        {selectedShop.paymentMethod}
+                                                    <div className="text-right">
+                                                        <span className={`font-medium px-2 py-0.5 rounded text-sm ${getPaymentColor(selectedShop.paymentMethod)}`}>
+                                                            {selectedShop.paymentMethod}
+                                                        </span>
+                                                        {selectedShop.paymentMethod === 'CREDIT' && selectedShop.creditPeriod && (
+                                                            <div className="text-xs text-gray-500 mt-1">({selectedShop.creditPeriod} Days Credit)</div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className="flex justify-between border-b pb-2">
+                                                    <span className="text-gray-600">Payment Status</span>
+                                                    <span className="flex items-center gap-2 font-medium text-sm">
+                                                        <div className={`w-2.5 h-2.5 rounded-full ${getStatusColor(selectedShop.paymentStatus)}`} />
+                                                        {selectedShop.paymentStatus.replace(/_/g, ' ')}
                                                     </span>
                                                 </div>
                                                 <div className="flex justify-between border-b pb-2">

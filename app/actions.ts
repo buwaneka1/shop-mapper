@@ -1,15 +1,14 @@
 'use server'
 
-import { PrismaClient } from '@prisma/client'
-import { revalidatePath } from 'next/cache'
-import { writeFile } from 'fs/promises'
-import path from 'path'
-import { cookies } from 'next/headers'
-import bcrypt from 'bcryptjs'
-import { encrypt, decrypt } from '@/lib/auth'
-import { redirect } from 'next/navigation'
-
-const prisma = new PrismaClient()
+import prisma from '@/lib/prisma';
+import { revalidatePath } from 'next/cache';
+import { writeFile } from 'fs/promises';
+import path from 'path';
+import { cookies } from 'next/headers';
+import bcrypt from 'bcryptjs';
+import { encrypt, decrypt, getSession, updateSession } from '@/lib/auth';
+import { redirect } from 'next/navigation';
+import { z } from 'zod';
 
 export async function loginAction(formData: FormData) {
     const username = formData.get('username') as string
@@ -171,6 +170,11 @@ export async function addShop(formData: FormData) {
     const latitude = parseFloat(formData.get('latitude') as string)
     const longitude = parseFloat(formData.get('longitude') as string)
 
+    // New Fields
+    const paymentStatus = formData.get('paymentStatus') as 'ON_TIME' | 'DELAYED' | 'EXTREMELY_DELAYED'
+    const creditPeriodRaw = formData.get('creditPeriod')
+    const creditPeriod = creditPeriodRaw ? parseInt(creditPeriodRaw as string) : null
+
     // Check if location is valid
     if (isNaN(latitude) || isNaN(longitude)) {
         throw new Error("Invalid Location")
@@ -194,6 +198,8 @@ export async function addShop(formData: FormData) {
                 ownerName,
                 contactNumber,
                 paymentMethod,
+                creditPeriod,       // New
+                paymentStatus,      // New
                 avgBillValue,
                 routeId,
                 latitude,

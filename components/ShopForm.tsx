@@ -16,6 +16,7 @@ interface ShopFormProps {
 }
 
 export default function ShopForm({ routes, selectedLocation, onLocationRequest, onSubmit }: ShopFormProps) {
+    const [paymentMethod, setPaymentMethod] = useState('CASH');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -32,6 +33,7 @@ export default function ShopForm({ routes, selectedLocation, onLocationRequest, 
         await onSubmit(formData);
         setIsSubmitting(false);
         (event.target as HTMLFormElement).reset();
+        setPaymentMethod('CASH'); // Reset state
     };
 
     return (
@@ -56,7 +58,12 @@ export default function ShopForm({ routes, selectedLocation, onLocationRequest, 
             <div className="grid grid-cols-2 gap-4">
                 <div>
                     <label className="block text-sm font-medium text-gray-700">Payment Method</label>
-                    <select name="paymentMethod" className="mt-1 block w-full border rounded p-2 bg-white">
+                    <select
+                        name="paymentMethod"
+                        value={paymentMethod}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className="mt-1 block w-full border rounded p-2 bg-white"
+                    >
                         <option value="CASH">Cash</option>
                         <option value="CREDIT">Credit</option>
                         <option value="CHEQUE">Cheque</option>
@@ -72,6 +79,35 @@ export default function ShopForm({ routes, selectedLocation, onLocationRequest, 
                 </div>
             </div>
 
+            {paymentMethod === 'CREDIT' && (
+                <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                    <label className="block text-sm font-medium text-gray-700">Credit Period</label>
+                    <div className="flex gap-4 mt-2">
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                            <input type="radio" name="creditPeriod" value="7" className="text-blue-600 focus:ring-blue-500" />
+                            <span className="text-sm text-gray-700">7 Days</span>
+                        </label>
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                            <input type="radio" name="creditPeriod" value="14" className="text-blue-600 focus:ring-blue-500" />
+                            <span className="text-sm text-gray-700">14 Days</span>
+                        </label>
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                            <input type="radio" name="creditPeriod" value="21" className="text-blue-600 focus:ring-blue-500" />
+                            <span className="text-sm text-gray-700">21 Days</span>
+                        </label>
+                    </div>
+                </div>
+            )}
+
+            <div>
+                <label className="block text-sm font-medium text-gray-700">Payment Status</label>
+                <select name="paymentStatus" className="mt-1 block w-full border rounded p-2 bg-white">
+                    <option value="ON_TIME">Pays on Time (Green)</option>
+                    <option value="DELAYED">Some Delay (Yellow)</option>
+                    <option value="EXTREMELY_DELAYED">Extremely Delayed (Red)</option>
+                </select>
+            </div>
+
             <div>
                 <label className="block text-sm font-medium text-gray-700">Route</label>
                 <select name="routeId" required className="mt-1 block w-full border rounded p-2 bg-white">
@@ -83,7 +119,7 @@ export default function ShopForm({ routes, selectedLocation, onLocationRequest, 
 
             <div>
                 <label className="block text-sm font-medium text-gray-700">Shop Photo</label>
-                <input name="image" type="file" accept="image/*" className="mt-1 block w-full text-sm text-gray-500" />
+                <input name="image" type="file" accept="image/*" className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 file:cursor-pointer cursor-pointer" />
             </div>
 
             <div>

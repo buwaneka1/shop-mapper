@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import prisma from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { createLorry, createRoute, updateLorry, updateRoute } from '@/app/actions';
@@ -7,7 +7,6 @@ import DeleteRouteButton from '@/components/DeleteRouteButton';
 import SubmitButton from '@/components/SubmitButton';
 import Link from 'next/link';
 
-const prisma = new PrismaClient();
 
 export const dynamic = 'force-dynamic';
 

@@ -1,13 +1,10 @@
-import { PrismaClient } from '@prisma/client';
 import Dashboard from '@/components/Dashboard';
+import prisma from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
-
-const prisma = new PrismaClient();
 
 export default async function Home() {
   const session = await getSession();
