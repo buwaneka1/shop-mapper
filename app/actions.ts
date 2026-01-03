@@ -192,16 +192,26 @@ export async function addShop(formData: FormData) {
 
     if (image && image.size > 0) {
         try {
-            const buffer = Buffer.from(await image.arrayBuffer())
-            const filename = `${Date.now()}_${image.name.replaceAll(' ', '_')}`
+            const arrayBuffer = await image.arrayBuffer();
+            const buffer = new Uint8Array(arrayBuffer);
 
-            // Note: This only works on local filesystem. On Vercel, this might fail or be ephemeral.
-            // For production, use Vercel Blob or S3. 
-            // We'll wrap this so it doesn't crash the whole request if fs fails.
-            await writeFile(path.join(process.cwd(), 'public/uploads', filename), buffer)
-            imageUrl = `/uploads/${filename}`
+            const result: any = await new Promise((resolve, reject) => {
+                cloudinary.uploader.upload_stream({
+                    folder: "shop-mapper",
+                }, (error, result) => {
+                    if (error) {
+                        reject(error);
+                    } else {
+                        resolve(result);
+                    }
+                }).end(buffer);
+            });
+
+            if (result && result.secure_url) {
+                imageUrl = result.secure_url;
+            }
         } catch (fileError) {
-            console.error("File upload failed (likely read-only filesystem):", fileError);
+            console.error("Cloudinary upload failed:", fileError);
             // Continue without image
         }
     }
