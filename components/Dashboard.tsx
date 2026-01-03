@@ -87,8 +87,8 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
             await addShop(formData);
             alert('Shop added successfully!');
             setSelectedLocation(null);
-        } catch (e) {
-            alert('Failed to save shop. You might not have permission.');
+        } catch (e: any) {
+            alert(e.message || 'Failed to save shop. Check your connection or permissions.');
         }
     };
 

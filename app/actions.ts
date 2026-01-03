@@ -184,11 +184,19 @@ export async function addShop(formData: FormData) {
     let imageUrl = null
 
     if (image && image.size > 0) {
-        const buffer = Buffer.from(await image.arrayBuffer())
-        const filename = `${Date.now()}_${image.name.replaceAll(' ', '_')}`
+        try {
+            const buffer = Buffer.from(await image.arrayBuffer())
+            const filename = `${Date.now()}_${image.name.replaceAll(' ', '_')}`
 
-        await writeFile(path.join(process.cwd(), 'public/uploads', filename), buffer)
-        imageUrl = `/uploads/${filename}`
+            // Note: This only works on local filesystem. On Vercel, this might fail or be ephemeral.
+            // For production, use Vercel Blob or S3. 
+            // We'll wrap this so it doesn't crash the whole request if fs fails.
+            await writeFile(path.join(process.cwd(), 'public/uploads', filename), buffer)
+            imageUrl = `/uploads/${filename}`
+        } catch (fileError) {
+            console.error("File upload failed (likely read-only filesystem):", fileError);
+            // Continue without image
+        }
     }
 
     try {
