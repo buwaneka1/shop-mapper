@@ -52,8 +52,16 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
     const [activeTab, setActiveTab] = useState<'view' | 'manage'>('view');
 
     useEffect(() => {
+        // Auto-select lorry if only one is available (e.g. for REP)
+        if (lorries.length === 1) {
+            setSelectedLorryId(lorries[0].id);
+        }
+    }, [lorries]);
+
+    useEffect(() => {
         if (userRole === 'REP') {
-            setActiveTab('manage');
+            // Default to 'view' so they see their shops first, but let them switch
+            setActiveTab('view');
         } else {
             setActiveTab('view');
         }
@@ -62,6 +70,16 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
     // Viewer/Admin View specific states
     const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
     const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
+
+    // Filter States
+    // Filter States
+    const [filterPaymentMethod, setFilterPaymentMethod] = useState<string>('ALL');
+    const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>('ALL');
+
+    // Mobile Sidebar State
+    const [mobileShowSidebar, setMobileShowSidebar] = useState(true);
+    const showMobileContent = () => setMobileShowSidebar(false);
+    const showMobileSidebar = () => setMobileShowSidebar(true);
 
     const handleLocationSelect = (lat: number, lng: number) => {
         setSelectedLocation({ lat, lng });
@@ -94,25 +112,31 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
 
     // Filter shops for map/list display based on selection
     const filteredShops = useMemo(() => {
-        // If in Manage mode (Admin/Rep), logic might differ or just show all/lorry based?
-        // Current logic:
+        let result = shops;
+
+        // 1. Filter by Lorry/Route
         if (selectedRouteId) {
-            return shops.filter(s => s.routeId === selectedRouteId);
-        }
-        if (selectedLorryId) {
+            result = result.filter(s => s.routeId === selectedRouteId);
+        } else if (selectedLorryId) {
             const lorry = lorries.find(l => l.id === selectedLorryId);
             if (lorry) {
                 const lorryRouteIds = lorry.routes.map(r => r.id);
-                return shops.filter(s => lorryRouteIds.includes(s.routeId));
+                result = result.filter(s => lorryRouteIds.includes(s.routeId));
             }
         }
 
-        // If Admin is in 'manage' mode or general view, and no filters applied, show all?
-        // Or if Rep, show their lorry shops
-        // The page.tsx passes filtered 'shops' prop for Reps already.
-        // For Admin, 'shops' is ALL shops.
-        return shops;
-    }, [shops, selectedLorryId, selectedRouteId, lorries]);
+        // 2. Filter by Payment Method
+        if (filterPaymentMethod !== 'ALL') {
+            result = result.filter(s => s.paymentMethod === filterPaymentMethod);
+        }
+
+        // 3. Filter by Payment Status
+        if (filterPaymentStatus !== 'ALL') {
+            result = result.filter(s => s.paymentStatus === filterPaymentStatus);
+        }
+
+        return result;
+    }, [shops, selectedLorryId, selectedRouteId, lorries, filterPaymentMethod, filterPaymentStatus]);
 
     const getPaymentColor = (method: string) => {
         switch (method) {
@@ -138,10 +162,10 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
             <div className="bg-white border-b p-2 flex justify-between items-center px-4 shrink-0 shadow-sm z-20">
                 <div className="text-sm flex items-center gap-4">
                     <span>Logged in as: <span className="font-bold">{username}</span> ({userRole})</span>
-                    {userRole === 'ADMIN' && (
+                    {(userRole === 'ADMIN' || userRole === 'REP') && (
                         <div className="flex bg-gray-100 p-1 rounded">
                             <button
-                                onClick={() => { setActiveTab('view'); setViewMode('list'); setSelectedLorryId(null); setSelectedRouteId(null); }}
+                                onClick={() => { setActiveTab('view'); setViewMode('list'); }}
                                 className={`px-3 py-1 text-xs rounded transition-all ${activeTab === 'view' ? 'bg-white shadow text-blue-600 font-bold' : 'text-gray-600 hover:bg-gray-200'}`}
                             >
                                 View Shops
@@ -167,13 +191,21 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
 
             <div className="flex flex-col md:flex-row flex-1 overflow-hidden relative">
                 {/* Sidebar / Form Area */}
-                <div className={`w-full md:w-1/3 p-4 bg-gray-50 overflow-y-auto z-10 shadow-xl border-r border-gray-200 transition-all duration-300 ${isViewMode && selectedShop ? 'hidden md:block' : ''}`}>
+                <div className={`w-full md:w-1/3 p-4 bg-gray-50 overflow-y-auto z-10 shadow-xl border-r border-gray-200 transition-all duration-300 md:block ${mobileShowSidebar ? 'block' : 'hidden'}`}>
 
                     {isViewMode ? (
                         <div className="space-y-4">
-                            <div className="p-4 bg-blue-50 text-blue-800 rounded mb-4">
-                                <h3 className="font-bold">Viewer Mode</h3>
-                                <p className="text-sm mt-1">Navigate: Lorry &gt; Route &gt; Shops</p>
+                            <div className="p-4 bg-blue-50 text-blue-800 rounded mb-4 flex justify-between items-center">
+                                <div>
+                                    <h3 className="font-bold">Viewer Mode</h3>
+                                    <p className="text-sm mt-1">Navigate: Lorry &gt; Route &gt; Shops</p>
+                                </div>
+                                <button
+                                    onClick={showMobileContent}
+                                    className="md:hidden bg-blue-600 text-white px-3 py-1 rounded text-sm font-bold shadow"
+                                >
+                                    Show Results &rarr;
+                                </button>
                             </div>
 
                             {/* Lorry Selection */}
@@ -195,6 +227,13 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
                             {/* Route Selection - Now acts as filter */}
                             {selectedLorryId && (
                                 <div className="animate-in fade-in slide-in-from-left-4 duration-300">
+                                    <button
+                                        onClick={showMobileContent}
+                                        className="w-full md:hidden bg-blue-600 text-white py-2 rounded-lg font-bold shadow mb-4"
+                                    >
+                                        View {filteredShops.length} Shops
+                                    </button>
+
                                     <h4 className="font-semibold mb-2 mt-4 text-gray-700">2. Filter by Route</h4>
                                     <div className="space-y-1">
                                         <button
@@ -212,6 +251,41 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
                                                 {route.name}
                                             </button>
                                         ))}
+                                    </div>
+
+                                    {/* Additional Filters */}
+                                    <h4 className="font-semibold mb-2 mt-4 text-gray-700">3. Filter by Payment</h4>
+
+                                    <div className="space-y-2">
+                                        {/* Payment Method */}
+                                        <div>
+                                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Method</label>
+                                            <select
+                                                value={filterPaymentMethod}
+                                                onChange={(e) => setFilterPaymentMethod(e.target.value)}
+                                                className="w-full mt-1 p-2 border border-gray-300 rounded bg-white text-sm"
+                                            >
+                                                <option value="ALL">All Methods</option>
+                                                <option value="CASH">Cash</option>
+                                                <option value="CREDIT">Credit</option>
+                                                <option value="CHEQUE">Cheque</option>
+                                            </select>
+                                        </div>
+
+                                        {/* Payment Status */}
+                                        <div>
+                                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</label>
+                                            <select
+                                                value={filterPaymentStatus}
+                                                onChange={(e) => setFilterPaymentStatus(e.target.value)}
+                                                className="w-full mt-1 p-2 border border-gray-300 rounded bg-white text-sm"
+                                            >
+                                                <option value="ALL">All Statuses</option>
+                                                <option value="ON_TIME">On Time</option>
+                                                <option value="DELAYED">Delayed</option>
+                                                <option value="EXTREMELY_DELAYED">Extremely Delayed</option>
+                                            </select>
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -242,7 +316,16 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
                 </div>
 
                 {/* Main Content Area (Map or List, depending on mode) */}
-                <div className="flex-1 relative z-0 h-full overflow-hidden bg-gray-100">
+                <div className={`flex-1 relative z-0 h-full overflow-hidden bg-gray-100 md:block ${!mobileShowSidebar ? 'block' : 'hidden'}`}>
+
+                    {/* Mobile Back to Filters Button */}
+                    <button
+                        onClick={showMobileSidebar}
+                        className="absolute top-24 left-4 z-[900] md:hidden bg-white text-gray-800 p-2 rounded-full shadow-lg border border-gray-200 flex items-center gap-2 text-xs font-bold"
+                    >
+                        &larr; Filters
+                    </button>
+
                     {/* View Mode Logic - Show if Lorry is selected (Route is optional filter) */}
                     {isViewMode && selectedLorryId ? (
                         <>
