@@ -165,13 +165,13 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
                     {(userRole === 'ADMIN' || userRole === 'REP') && (
                         <div className="flex bg-gray-100 p-1 rounded">
                             <button
-                                onClick={() => { setActiveTab('view'); setViewMode('list'); }}
+                                onClick={() => { setActiveTab('view'); setViewMode('list'); setMobileShowSidebar(true); }}
                                 className={`px-3 py-1 text-xs rounded transition-all ${activeTab === 'view' ? 'bg-white shadow text-blue-600 font-bold' : 'text-gray-600 hover:bg-gray-200'}`}
                             >
                                 View Shops
                             </button>
                             <button
-                                onClick={() => setActiveTab('manage')}
+                                onClick={() => { setActiveTab('manage'); setMobileShowSidebar(true); }}
                                 className={`px-3 py-1 text-xs rounded transition-all ${activeTab === 'manage' ? 'bg-white shadow text-blue-600 font-bold' : 'text-gray-600 hover:bg-gray-200'}`}
                             >
                                 Manage Shops
