@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import Spinner from './Spinner';
 
+import imageCompression from 'browser-image-compression';
+
 type Route = {
     id: number;
     name: string;
@@ -18,6 +20,8 @@ interface ShopFormProps {
 export default function ShopForm({ routes, selectedLocation, onLocationRequest, onSubmit }: ShopFormProps) {
     const [paymentMethod, setPaymentMethod] = useState('CASH');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [compressedFile, setCompressedFile] = useState<File | null>(null);
+    const [isCompressing, setIsCompressing] = useState(false);
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -30,10 +34,42 @@ export default function ShopForm({ routes, selectedLocation, onLocationRequest, 
             formData.set('longitude', selectedLocation.lng.toString());
         }
 
+        // Use the compressed file if available
+        if (compressedFile) {
+            formData.set('image', compressedFile);
+        }
+
         await onSubmit(formData);
         setIsSubmitting(false);
         (event.target as HTMLFormElement).reset();
         setPaymentMethod('CASH'); // Reset state
+        setCompressedFile(null);
+    };
+
+    const handleImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        // Reset previous state
+        setCompressedFile(null);
+
+        // Options for compression
+        const options = {
+            maxSizeMB: 4.5, // Target slightly under 5MB to be safe
+            maxWidthOrHeight: 1920,
+            useWebWorker: true
+        };
+
+        try {
+            setIsCompressing(true);
+            const compressed = await imageCompression(file, options);
+            setCompressedFile(compressed);
+            setIsCompressing(false);
+        } catch (error) {
+            console.error("Compression failed:", error);
+            alert("Failed to compress image. Please try a different photo.");
+            setIsCompressing(false);
+        }
     };
 
     return (
@@ -119,7 +155,24 @@ export default function ShopForm({ routes, selectedLocation, onLocationRequest, 
 
             <div>
                 <label className="block text-sm font-medium text-gray-700">Shop Photo</label>
-                <input name="image" type="file" accept="image/*" className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 file:cursor-pointer cursor-pointer" />
+                <input
+                    name="image"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 file:cursor-pointer cursor-pointer"
+                />
+                {isCompressing && (
+                    <div className="text-xs text-blue-600 mt-1 font-semibold flex items-center gap-1">
+                        <Spinner />
+                        Optimizing image...
+                    </div>
+                )}
+                {compressedFile && (
+                    <div className="text-xs text-green-600 mt-1 font-semibold">
+                        Image ready! ({(compressedFile.size / 1024 / 1024).toFixed(2)} MB)
+                    </div>
+                )}
             </div>
 
             <div>
@@ -148,8 +201,8 @@ export default function ShopForm({ routes, selectedLocation, onLocationRequest, 
 
             <button
                 type="submit"
-                disabled={isSubmitting || !selectedLocation}
-                className={`w-full text-white py-2 rounded flex items-center justify-center gap-2 ${isSubmitting || !selectedLocation ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                disabled={isSubmitting || isCompressing || !selectedLocation}
+                className={`w-full text-white py-2 rounded flex items-center justify-center gap-2 ${isSubmitting || isCompressing || !selectedLocation ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
             >
                 {isSubmitting && <Spinner />}
                 {isSubmitting ? 'Saving...' : 'Save Shop'}
