@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import ShopForm from './ShopForm';
-import { addShop, logoutAction, deleteShop } from '@/app/actions';
+import { addShop, logoutAction, deleteShop, updateShop } from '@/app/actions';
 
 // Dynamically import Map with no SSR
 const Map = dynamic(() => import('./Map'), { ssr: false, loading: () => <div className="h-full w-full bg-gray-200 animate-pulse flex items-center justify-center">Loading Map...</div> });
@@ -51,6 +51,9 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
     // Default to 'view' for Admin and Viewer, 'manage' for Rep
     const [activeTab, setActiveTab] = useState<'view' | 'manage'>('view');
 
+    // Edit Mode State
+    const [editingShop, setEditingShop] = useState<Shop | null>(null);
+
     useEffect(() => {
         // Auto-select lorry if only one is available (e.g. for REP)
         if (lorries.length === 1) {
@@ -75,14 +78,38 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
     // Filter States
     const [filterPaymentMethod, setFilterPaymentMethod] = useState<string>('ALL');
     const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>('ALL');
+    const [searchQuery, setSearchQuery] = useState<string>('');
 
     // Mobile Sidebar State
     const [mobileShowSidebar, setMobileShowSidebar] = useState(true);
     const showMobileContent = () => setMobileShowSidebar(false);
     const showMobileSidebar = () => setMobileShowSidebar(true);
 
+    // Full Screen Image State
+    const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
+
+    // Edit Mode State
+
+
     const handleLocationSelect = (lat: number, lng: number) => {
-        setSelectedLocation({ lat, lng });
+        // If editing a shop, update its edited location but keep the form open
+        if (editingShop || activeTab === 'manage') {
+            setSelectedLocation({ lat, lng });
+        }
+    };
+
+    const handleEditClick = (shop: Shop) => {
+        setEditingShop(shop);
+        setSelectedLocation({ lat: shop.latitude, lng: shop.longitude });
+        setSelectedShop(null); // Close modal
+        setActiveTab('manage'); // Switch to form view
+        setMobileShowSidebar(true); // Ensure sidebar is visible
+    };
+
+    const handleCancelEdit = () => {
+        setEditingShop(null);
+        setSelectedLocation(null);
+        setActiveTab('view');
     };
 
     const handleGeolocationRequest = () => {
@@ -94,6 +121,10 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
                 });
             }, (error) => {
                 alert('Error getting location: ' + error.message);
+            }, {
+                enableHighAccuracy: true,
+                timeout: 20000,
+                maximumAge: 0
             });
         } else {
             alert('Geolocation is not supported by your browser');
@@ -102,9 +133,19 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
 
     const handleShopSubmit = async (formData: FormData) => {
         try {
-            await addShop(formData);
-            alert('Shop added successfully!');
-            setSelectedLocation(null);
+            if (editingShop) {
+                // UPDATE
+                await updateShop(formData);
+                alert('Shop updated successfully!');
+                setEditingShop(null);
+                setSelectedLocation(null);
+                setActiveTab('view'); // Go back to view
+            } else {
+                // CREATE
+                await addShop(formData);
+                alert('Shop added successfully!');
+                setSelectedLocation(null);
+            }
         } catch (e: any) {
             alert(e.message || 'Failed to save shop. Check your connection or permissions.');
         }
@@ -135,8 +176,14 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
             result = result.filter(s => s.paymentStatus === filterPaymentStatus);
         }
 
+        // 4. Filter by Search Query
+        if (searchQuery.trim()) {
+            const lowerQuery = searchQuery.toLowerCase();
+            result = result.filter(s => s.name.toLowerCase().includes(lowerQuery));
+        }
+
         return result;
-    }, [shops, selectedLorryId, selectedRouteId, lorries, filterPaymentMethod, filterPaymentStatus]);
+    }, [shops, selectedLorryId, selectedRouteId, lorries, filterPaymentMethod, filterPaymentStatus, searchQuery]);
 
     const getPaymentColor = (method: string) => {
         switch (method) {
@@ -165,14 +212,14 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
                     {(userRole === 'ADMIN' || userRole === 'REP') && (
                         <div className="flex bg-gray-100 p-1 rounded">
                             <button
-                                onClick={() => { setActiveTab('view'); setViewMode('list'); setMobileShowSidebar(true); }}
+                                onClick={() => { setActiveTab('view'); setViewMode('list'); setMobileShowSidebar(true); setEditingShop(null); setSelectedLocation(null); }}
                                 className={`px-3 py-1 text-xs rounded transition-all ${activeTab === 'view' ? 'bg-white shadow text-blue-600 font-bold' : 'text-gray-600 hover:bg-gray-200'}`}
                             >
                                 View Shops
                             </button>
                             <button
-                                onClick={() => { setActiveTab('manage'); setMobileShowSidebar(true); }}
-                                className={`px-3 py-1 text-xs rounded transition-all ${activeTab === 'manage' ? 'bg-white shadow text-blue-600 font-bold' : 'text-gray-600 hover:bg-gray-200'}`}
+                                onClick={() => { setActiveTab('manage'); setMobileShowSidebar(true); setEditingShop(null); setSelectedLocation(null); }}
+                                className={`px-3 py-1 text-xs rounded transition-all ${activeTab === 'manage' && !editingShop ? 'bg-white shadow text-blue-600 font-bold' : 'text-gray-600 hover:bg-gray-200'}`}
                             >
                                 Manage Shops
                             </button>
@@ -206,6 +253,18 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
                                 >
                                     Show Results &rarr;
                                 </button>
+                            </div>
+
+                            {/* Search Input */}
+                            <div className="mb-4">
+                                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">Search Shops</label>
+                                <input
+                                    type="text"
+                                    placeholder="Search by shop name..."
+                                    value={searchQuery}
+                                    onChange={(e) => { setSearchQuery(e.target.value); setViewMode('list'); setSelectedShop(null); }}
+                                    className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                />
                             </div>
 
                             {/* Lorry Selection */}
@@ -293,24 +352,28 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
                     ) : (
                         // MANAGE MODE (Admin 'manage' or Rep)
                         <>
-                            <div className="p-4 bg-green-50 text-green-800 rounded mb-4">
-                                <h3 className="font-bold">Manage Mode</h3>
-                                <p className="text-sm mt-1">Add new shops to system.</p>
+                            <div className={`p-4 ${editingShop ? 'bg-yellow-50 text-yellow-800' : 'bg-green-50 text-green-800'} rounded mb-4`}>
+                                <h3 className="font-bold">{editingShop ? 'Edit Shop' : 'Manage Mode'}</h3>
+                                <p className="text-sm mt-1">{editingShop ? `Editing: ${editingShop.name}` : 'Add new shops to system.'}</p>
                             </div>
                             <ShopForm
                                 routes={routes}
                                 selectedLocation={selectedLocation}
                                 onLocationRequest={handleGeolocationRequest}
                                 onSubmit={handleShopSubmit}
+                                initialData={editingShop}
+                                onCancel={editingShop ? handleCancelEdit : undefined}
                             />
-                            <div className="mt-8">
-                                <h3 className="text-lg font-semibold mb-2">Instructions</h3>
-                                <ul className="list-disc list-inside text-sm text-gray-600">
-                                    <li>Use "Get My Location" to auto-fill coordinates.</li>
-                                    <li>Or click on the map to manually pin-point the shop.</li>
-                                    <li>Fill in details and click "Save Shop".</li>
-                                </ul>
-                            </div>
+                            {!editingShop && (
+                                <div className="mt-8">
+                                    <h3 className="text-lg font-semibold mb-2">Instructions</h3>
+                                    <ul className="list-disc list-inside text-sm text-gray-600">
+                                        <li>Use "Get My Location" to auto-fill coordinates.</li>
+                                        <li>Or click on the map to manually pin-point the shop.</li>
+                                        <li>Fill in details and click "Save Shop".</li>
+                                    </ul>
+                                </div>
+                            )}
                         </>
                     )}
                 </div>
@@ -385,9 +448,19 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
                             {selectedShop && (
                                 <div className="absolute inset-0 z-[1100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setSelectedShop(null)}>
                                     <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-                                        <div className="relative h-48 bg-gray-200">
+                                        <div className="relative h-64 bg-black">
                                             {selectedShop.imageUrl ? (
-                                                <img src={selectedShop.imageUrl} alt={selectedShop.name} className="w-full h-full object-cover" />
+                                                <>
+                                                    <img
+                                                        src={selectedShop.imageUrl}
+                                                        alt={selectedShop.name}
+                                                        className="w-full h-full object-contain cursor-zoom-in"
+                                                        onClick={() => setFullScreenImage(selectedShop.imageUrl || null)}
+                                                    />
+                                                    <div className="absolute bottom-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded pointer-events-none">
+                                                        Click to expand
+                                                    </div>
+                                                </>
                                             ) : (
                                                 <div className="w-full h-full flex items-center justify-center text-gray-400">
                                                     No Image Available
@@ -405,22 +478,32 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
                                         <div className="p-6">
                                             <div className="flex justify-between items-start mb-4">
                                                 <h2 className="text-2xl font-bold text-gray-900">{selectedShop.name}</h2>
-                                                {userRole === 'ADMIN' && (
-                                                    <button
-                                                        onClick={async () => {
-                                                            if (window.confirm("Are you sure you want to delete this shop? This cannot be undone.")) {
-                                                                try {
-                                                                    await deleteShop(selectedShop.id);
-                                                                    setSelectedShop(null);
-                                                                } catch (e) {
-                                                                    alert("Failed to delete shop");
-                                                                }
-                                                            }
-                                                        }}
-                                                        className="text-red-600 hover:text-red-800 text-sm font-semibold border border-red-200 bg-red-50 px-3 py-1 rounded hover:bg-red-100"
-                                                    >
-                                                        Delete
-                                                    </button>
+                                                {(userRole === 'ADMIN' || userRole === 'REP') && (
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={() => handleEditClick(selectedShop)}
+                                                            className="text-blue-600 hover:text-blue-800 text-sm font-semibold border border-blue-200 bg-blue-50 px-3 py-1 rounded hover:bg-blue-100"
+                                                        >
+                                                            Edit
+                                                        </button>
+                                                        {userRole === 'ADMIN' && (
+                                                            <button
+                                                                onClick={async () => {
+                                                                    if (window.confirm("Are you sure you want to delete this shop? This cannot be undone.")) {
+                                                                        try {
+                                                                            await deleteShop(selectedShop.id);
+                                                                            setSelectedShop(null);
+                                                                        } catch (e) {
+                                                                            alert("Failed to delete shop");
+                                                                        }
+                                                                    }
+                                                                }}
+                                                                className="text-red-600 hover:text-red-800 text-sm font-semibold border border-red-200 bg-red-50 px-3 py-1 rounded hover:bg-red-100"
+                                                            >
+                                                                Delete
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 )}
                                             </div>
 
@@ -478,6 +561,28 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
                                             </div>
                                         </div>
                                     </div>
+                                </div>
+                            )}
+
+                            {/* Full Screen Image Modal */}
+                            {fullScreenImage && (
+                                <div
+                                    className="fixed inset-0 z-[1200] bg-black/90 backdrop-blur flex items-center justify-center p-4 cursor-zoom-out"
+                                    onClick={() => setFullScreenImage(null)}
+                                >
+                                    <button
+                                        onClick={() => setFullScreenImage(null)}
+                                        className="absolute top-4 right-4 text-white hover:text-gray-300 p-2"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                    <img
+                                        src={fullScreenImage}
+                                        alt="Full Screen"
+                                        className="max-h-full max-w-full object-contain"
+                                    />
                                 </div>
                             )}
                         </>

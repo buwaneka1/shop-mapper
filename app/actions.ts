@@ -240,6 +240,84 @@ export async function addShop(formData: FormData) {
     }
 }
 
+export async function updateShop(formData: FormData) {
+    const cookieStore = await cookies()
+    const sessionToken = cookieStore.get('session')?.value
+    if (!sessionToken) throw new Error('Unauthorized')
+
+    const session = await decrypt(sessionToken)
+    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'REP')) {
+        throw new Error('Unauthorized: Only Admins and Reps can update shops')
+    }
+
+    const id = parseInt(formData.get('id') as string)
+    if (isNaN(id)) throw new Error('Invalid Shop ID')
+
+    const name = formData.get('name') as string
+    const ownerName = formData.get('ownerName') as string
+    const contactNumber = formData.get('contactNumber') as string
+    const paymentMethod = formData.get('paymentMethod') as string
+    const avgBillValue = parseFloat(formData.get('avgBillValue') as string || '0')
+    const routeId = parseInt(formData.get('routeId') as string)
+    const latitude = parseFloat(formData.get('latitude') as string)
+    const longitude = parseFloat(formData.get('longitude') as string)
+    const paymentStatus = formData.get('paymentStatus') as 'ON_TIME' | 'DELAYED' | 'EXTREMELY_DELAYED'
+    const creditPeriodRaw = formData.get('creditPeriod') as string
+    const creditPeriod = creditPeriodRaw ? parseInt(creditPeriodRaw) : null
+
+    const image = formData.get('image') as File
+    let imageUrl = undefined // Undefined means "do not update" in Prisma
+
+    if (image && image.size > 0) {
+        try {
+            const arrayBuffer = await image.arrayBuffer();
+            const buffer = new Uint8Array(arrayBuffer);
+
+            const result: any = await new Promise((resolve, reject) => {
+                cloudinary.uploader.upload_stream({
+                    folder: "shop-mapper",
+                }, (error, result) => {
+                    if (error) {
+                        reject(error);
+                    } else {
+                        resolve(result);
+                    }
+                }).end(buffer);
+            });
+
+            if (result && result.secure_url) {
+                imageUrl = result.secure_url;
+            }
+        } catch (fileError) {
+            console.error("Cloudinary upload failed:", fileError);
+        }
+    }
+
+    try {
+        await prisma.shop.update({
+            where: { id },
+            data: {
+                name,
+                ownerName,
+                contactNumber,
+                paymentMethod,
+                creditPeriod,
+                paymentStatus,
+                avgBillValue,
+                routeId,
+                latitude,
+                longitude,
+                ...(imageUrl !== undefined && { imageUrl }) // Only update if new image
+            }
+        })
+
+        revalidatePath('/')
+    } catch (error) {
+        console.error('Failed to update shop:', error)
+        throw new Error('Failed to update shop')
+    }
+}
+
 // --- Logistics Management ---
 
 export async function createLorry(formData: FormData) {
