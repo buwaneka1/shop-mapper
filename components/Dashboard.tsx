@@ -113,22 +113,55 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
     };
 
     const handleGeolocationRequest = () => {
-        if ('geolocation' in navigator) {
-            navigator.geolocation.getCurrentPosition((position) => {
+        if (!('geolocation' in navigator)) {
+            alert('Geolocation is not supported by your browser');
+            return;
+        }
+
+        const options = {
+            enableHighAccuracy: true,
+            timeout: 20000, // 20s
+            maximumAge: 0
+        };
+
+        const fallbackOptions = {
+            enableHighAccuracy: false, // Accept WiFi/Cell tower location
+            timeout: 30000, // 30s
+            maximumAge: 0
+        };
+
+        // First try high accuracy
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
                 setSelectedLocation({
                     lat: position.coords.latitude,
                     lng: position.coords.longitude
                 });
-            }, (error) => {
-                alert('Error getting location: ' + error.message);
-            }, {
-                enableHighAccuracy: true,
-                timeout: 20000,
-                maximumAge: 0
-            });
-        } else {
-            alert('Geolocation is not supported by your browser');
-        }
+            },
+            (error) => {
+                // 3 is TIMEOUT
+                if (error.code === 3) {
+                    // Retry with lower accuracy
+                    const confirmFallback = confirm("High accuracy GPS timed out. Try getting approximate location instead? (This implies using WiFi/Network location)");
+                    if (confirmFallback) {
+                        navigator.geolocation.getCurrentPosition(
+                            (pos) => {
+                                setSelectedLocation({
+                                    lat: pos.coords.latitude,
+                                    lng: pos.coords.longitude
+                                });
+                                alert("Used approximate location. Please check map accuracy.");
+                            },
+                            (err) => alert('Still failed to get location: ' + err.message),
+                            fallbackOptions
+                        );
+                    }
+                } else {
+                    alert('Error getting location: ' + error.message);
+                }
+            },
+            options
+        );
     };
 
     const handleShopSubmit = async (formData: FormData) => {
