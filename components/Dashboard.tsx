@@ -488,8 +488,8 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
                             {/* Shop Detail Modal */}
                             {selectedShop && (
                                 <div className="absolute inset-0 z-[1100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setSelectedShop(null)}>
-                                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-                                        <div className="relative h-64 bg-black">
+                                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                                        <div className="relative h-64 bg-black shrink-0">
                                             {selectedShop.imageUrl ? (
                                                 <>
                                                     <img
@@ -516,7 +516,7 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
                                                 </svg>
                                             </button>
                                         </div>
-                                        <div className="p-6">
+                                        <div className="p-6 overflow-y-auto">
                                             <div className="flex justify-between items-start mb-4">
                                                 <h2 className="text-2xl font-bold text-gray-900">{selectedShop.name}</h2>
                                                 {(userRole === 'ADMIN' || userRole === 'REP') && (
