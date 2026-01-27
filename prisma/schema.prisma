@@ -54,6 +54,8 @@ model Shop {
   longitude     Float
   routeId       Int
   route         Route         @relation(fields: [routeId], references: [id])
+  updatedAt     DateTime?     @updatedAt
+  isBlacklisted Boolean       @default(false)
 }
 
 enum PaymentStatus {

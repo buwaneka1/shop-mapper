@@ -505,3 +505,28 @@ export async function deleteRoute(formData: FormData) {
         throw new Error("Failed to delete route (Ensure no shops are assigned)")
     }
 }
+
+export async function toggleShopBlacklist(shopId: number) {
+    const cookieStore = await cookies()
+    const sessionToken = cookieStore.get('session')?.value
+    if (!sessionToken) throw new Error('Unauthorized')
+
+    const session = await decrypt(sessionToken)
+    if (!session || session.user.role !== 'ADMIN') {
+        throw new Error('Unauthorized: Only Admins can blacklist shops')
+    }
+
+    try {
+        const shop = await prisma.shop.findUnique({ where: { id: shopId } })
+        if (!shop) throw new Error("Shop not found")
+
+        await prisma.shop.update({
+            where: { id: shopId },
+            data: { isBlacklisted: !shop.isBlacklisted }
+        })
+        revalidatePath('/')
+    } catch (e) {
+        console.error("Failed to toggle shop blacklist", e)
+        throw new Error("Failed to toggle shop blacklist")
+    }
+}

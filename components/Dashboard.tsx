@@ -3,7 +3,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import ShopForm from './ShopForm';
-import { addShop, logoutAction, deleteShop, updateShop } from '@/app/actions';
+import LogoutButton from './LogoutButton';
+import { addShop, logoutAction, deleteShop, updateShop, toggleShopBlacklist } from '@/app/actions';
 
 // Dynamically import Map with no SSR
 const Map = dynamic(() => import('./Map'), { ssr: false, loading: () => <div className="h-full w-full bg-gray-200 animate-pulse flex items-center justify-center">Loading Map...</div> });
@@ -21,6 +22,8 @@ type Shop = {
     paymentStatus: 'ON_TIME' | 'DELAYED' | 'EXTREMELY_DELAYED';
     avgBillValue: number;
     imageUrl?: string | null;
+    updatedAt: Date | string | null;
+    isBlacklisted: boolean;
 };
 
 type Route = {
@@ -265,7 +268,7 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
                     )}
                 </div>
                 <form action={logoutAction}>
-                    <button className="text-sm text-red-600 hover:text-red-800 underline">Logout</button>
+                    <LogoutButton />
                 </form>
             </div>
 
@@ -451,12 +454,17 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
                                                 <div
                                                     key={shop.id}
                                                     onClick={() => setSelectedShop(shop)}
-                                                    className="bg-white p-4 rounded-lg shadow hover:shadow-md transition-shadow cursor-pointer border border-gray-200"
+                                                    className={`bg-white p-4 rounded-lg shadow hover:shadow-md transition-shadow cursor-pointer border ${shop.isBlacklisted ? 'border-red-500 ring-2 ring-red-100' : 'border-gray-200'}`}
                                                 >
                                                     <div className="flex justify-between items-start">
                                                         <div className="flex items-center gap-2">
                                                             <div className={`w-3 h-3 rounded-full ${getStatusColor(shop.paymentStatus)} shrink-0`} title={shop.paymentStatus.replace('_', ' ')} />
                                                             <h3 className="font-bold text-lg text-gray-900">{shop.name}</h3>
+                                                            {shop.isBlacklisted && (
+                                                                <span className="bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider">
+                                                                    Blacklisted
+                                                                </span>
+                                                            )}
                                                         </div>
                                                         <span className={`text-xs px-2 py-0.5 rounded font-medium ${getPaymentColor(shop.paymentMethod)}`}>
                                                             {shop.paymentMethod}
@@ -513,6 +521,23 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
                                                 <h2 className="text-2xl font-bold text-gray-900">{selectedShop.name}</h2>
                                                 {(userRole === 'ADMIN' || userRole === 'REP') && (
                                                     <div className="flex gap-2">
+                                                        {userRole === 'ADMIN' && (
+                                                            <button
+                                                                onClick={async () => {
+                                                                    if (confirm(`Are you sure you want to ${selectedShop.isBlacklisted ? 'remove from blacklist' : 'blacklist'} this shop?`)) {
+                                                                        try {
+                                                                            await toggleShopBlacklist(selectedShop.id);
+                                                                            setSelectedShop(prev => prev ? { ...prev, isBlacklisted: !prev.isBlacklisted } : null);
+                                                                        } catch (e) {
+                                                                            alert("Failed to toggle blacklist status");
+                                                                        }
+                                                                    }
+                                                                }}
+                                                                className={`text-xs font-semibold px-3 py-1 rounded border ${selectedShop.isBlacklisted ? 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200' : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'}`}
+                                                            >
+                                                                {selectedShop.isBlacklisted ? 'Unblacklist' : 'Blacklist'}
+                                                            </button>
+                                                        )}
                                                         <button
                                                             onClick={() => handleEditClick(selectedShop)}
                                                             className="text-blue-600 hover:text-blue-800 text-sm font-semibold border border-blue-200 bg-blue-50 px-3 py-1 rounded hover:bg-blue-100"
@@ -541,6 +566,11 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
                                             </div>
 
                                             <div className="space-y-3">
+                                                {selectedShop.isBlacklisted && (
+                                                    <div className="bg-red-50 border border-red-200 text-red-800 px-3 py-2 rounded text-center font-bold mb-4">
+                                                        ⚠️ THIS SHOP IS BLACKLISTED
+                                                    </div>
+                                                )}
                                                 <div className="flex justify-between border-b pb-2">
                                                     <span className="text-gray-600">Owner</span>
                                                     <span className="font-medium">{selectedShop.ownerName}</span>
@@ -577,6 +607,12 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
                                                     <span className="text-gray-600">Location</span>
                                                     <span className="text-sm font-mono bg-gray-100 px-2 rounded">
                                                         {selectedShop.latitude.toFixed(5)}, {selectedShop.longitude.toFixed(5)}
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-between border-t pt-2 mt-2">
+                                                    <span className="text-gray-600">Last Updated</span>
+                                                    <span className="font-medium text-sm">
+                                                        {selectedShop.updatedAt ? new Date(selectedShop.updatedAt).toLocaleDateString() : 'N/A'}
                                                     </span>
                                                 </div>
                                             </div>
