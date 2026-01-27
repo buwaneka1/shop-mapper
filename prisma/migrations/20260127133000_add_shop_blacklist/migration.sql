@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Shop" ADD COLUMN IF NOT EXISTS "isBlacklisted" BOOLEAN NOT NULL DEFAULT false;
