@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Spinner from './Spinner';
+import { savePendingShop } from '@/lib/offlineStore';
 
 import imageCompression from 'browser-image-compression';
 
@@ -31,13 +32,15 @@ interface ShopFormProps {
     onSubmit: (formData: FormData) => Promise<void>;
     initialData?: ShopData | null;
     onCancel?: () => void;
+    onOfflineSaveSuccess?: () => void;
 }
 
-export default function ShopForm({ routes, selectedLocation, onLocationRequest, onSubmit, initialData, onCancel }: ShopFormProps) {
+export default function ShopForm({ routes, selectedLocation, onLocationRequest, onSubmit, initialData, onCancel, onOfflineSaveSuccess }: ShopFormProps) {
     const [paymentMethod, setPaymentMethod] = useState(initialData?.paymentMethod || 'CASH');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [compressedFile, setCompressedFile] = useState<File | null>(null);
     const [isCompressing, setIsCompressing] = useState(false);
+    const [statusMessage, setStatusMessage] = useState<{ text: string, type: 'success' | 'error' | 'info' } | null>(null);
 
     // Update state when initialData changes (e.g. switching shops to edit)
     useEffect(() => {
@@ -73,12 +76,71 @@ export default function ShopForm({ routes, selectedLocation, onLocationRequest, 
             formData.set('image', compressedFile);
         }
 
-        await onSubmit(formData);
-        setIsSubmitting(false);
-        if (!initialData) {
-            (event.target as HTMLFormElement).reset();
-            setPaymentMethod('CASH');
-            setCompressedFile(null);
+        // Check Online Status
+        if (!navigator.onLine) {
+            const saveLocally = confirm("You are currently offline. Would you like to save this shop locally and sync it later when you have a connection?");
+            if (saveLocally) {
+                try {
+                    const shopData = {
+                        name: formData.get('name') as string,
+                        ownerName: formData.get('ownerName') as string,
+                        contactNumber: formData.get('contactNumber') as string,
+                        paymentMethod: formData.get('paymentMethod') as string,
+                        avgBillValue: formData.get('avgBillValue') as string,
+                        routeId: formData.get('routeId') as string,
+                        latitude: formData.get('latitude') as string,
+                        longitude: formData.get('longitude') as string,
+                        paymentStatus: formData.get('paymentStatus') as string,
+                        creditPeriod: formData.get('creditPeriod') as string || null,
+                    };
+
+                    await savePendingShop({
+                        formData: shopData,
+                        imageBlob: compressedFile || null
+                    });
+
+                    setStatusMessage({ text: "Shop saved locally! It will be synced when you are back online.", type: 'success' });
+
+                    // Reset form
+                    if (!initialData) {
+                        (event.target as HTMLFormElement).reset();
+                        setPaymentMethod('CASH');
+                        setCompressedFile(null);
+                    }
+
+                    if (onOfflineSaveSuccess) {
+                        onOfflineSaveSuccess();
+                    }
+
+                    setIsSubmitting(false);
+                    return;
+                } catch (err) {
+                    console.error("Failed to save locally:", err);
+                    alert("Failed to save shop locally.");
+                    setIsSubmitting(false);
+                    return;
+                }
+            } else {
+                setIsSubmitting(false);
+                return;
+            }
+        }
+
+        try {
+            await onSubmit(formData);
+            if (!initialData) {
+                (event.target as HTMLFormElement).reset();
+                setPaymentMethod('CASH');
+                setCompressedFile(null);
+            }
+        } catch (error: any) {
+            console.error("Submit failed:", error);
+            setStatusMessage({
+                text: error.message || "Failed to save shop. Check your connection.",
+                type: 'error'
+            });
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -111,6 +173,22 @@ export default function ShopForm({ routes, selectedLocation, onLocationRequest, 
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <h2 className="text-xl font-bold mb-4">{initialData ? 'Edit Shop' : 'Add New Shop'}</h2>
+
+            {statusMessage && (
+                <div className={`p-3 rounded text-sm font-medium animate-in fade-in slide-in-from-top-1 duration-300 ${statusMessage.type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
+                    statusMessage.type === 'error' ? 'bg-red-100 text-red-800 border border-red-200' :
+                        'bg-blue-100 text-blue-800 border border-blue-200'
+                    }`}>
+                    {statusMessage.text}
+                    <button
+                        type="button"
+                        onClick={() => setStatusMessage(null)}
+                        className="float-right font-bold ml-2"
+                    >
+                        &times;
+                    </button>
+                </div>
+            )}
 
             <div>
                 <label className="block text-sm font-medium text-gray-700">Shop Name</label>
@@ -218,7 +296,7 @@ export default function ShopForm({ routes, selectedLocation, onLocationRequest, 
 
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Location {initialData && <span className="text-xs font-normal text-gray-500">(Drag map or 'Get My Location' to change)</span>}
+                    Location {initialData && <span className="text-xs font-normal text-gray-500">(Drag map or &apos;Get My Location&apos; to change)</span>}
                 </label>
 
                 <div className="flex space-x-2 mb-2">

@@ -5,6 +5,8 @@ import dynamic from 'next/dynamic';
 import ShopForm from './ShopForm';
 import LogoutButton from './LogoutButton';
 import { addShop, logoutAction, deleteShop, updateShop, toggleShopBlacklist } from '@/app/actions';
+import { getPendingShops, deletePendingShop, hasPendingShops, PendingShop } from '@/lib/offlineStore';
+import Spinner from './Spinner';
 
 // Dynamically import Map with no SSR
 const Map = dynamic(() => import('./Map'), { ssr: false, loading: () => <div className="h-full w-full bg-gray-200 animate-pulse flex items-center justify-center">Loading Map...</div> });
@@ -57,12 +59,24 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
     // Edit Mode State
     const [editingShop, setEditingShop] = useState<Shop | null>(null);
 
+    const [pendingShops, setPendingShops] = useState<PendingShop[]>([]);
+    const [isSyncing, setIsSyncing] = useState(false);
+    const [syncProgress, setSyncProgress] = useState(0);
+
     useEffect(() => {
         // Auto-select lorry if only one is available (e.g. for REP)
         if (lorries.length === 1) {
             setSelectedLorryId(lorries[0].id);
         }
+
+        // Initial check for pending shops
+        checkPendingShops();
     }, [lorries]);
+
+    const checkPendingShops = async () => {
+        const shops = await getPendingShops();
+        setPendingShops(shops);
+    };
 
     useEffect(() => {
         if (userRole === 'REP') {
@@ -182,8 +196,56 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
                 alert('Shop added successfully!');
                 setSelectedLocation(null);
             }
-        } catch (e: any) {
-            alert(e.message || 'Failed to save shop. Check your connection or permissions.');
+        } catch (e: unknown) {
+            // Error handling is partly moved to ShopForm for offline
+            throw e; // Let ShopForm handle the UI if it's a crash
+        }
+    };
+
+    const handleSync = async () => {
+        if (!navigator.onLine) {
+            alert("You are still offline. Please connect to the internet to sync.");
+            return;
+        }
+
+        if (pendingShops.length === 0) return;
+
+        setIsSyncing(true);
+        setSyncProgress(0);
+        let successCount = 0;
+        let failCount = 0;
+
+        for (let i = 0; i < pendingShops.length; i++) {
+            const shop = pendingShops[i];
+            try {
+                const formData = new FormData();
+                Object.entries(shop.formData).forEach(([key, value]) => {
+                    if (value !== null) formData.append(key, value);
+                });
+
+                if (shop.imageBlob) {
+                    // Convert blob to file
+                    const file = new File([shop.imageBlob], "offline_image.jpg", { type: shop.imageBlob.type });
+                    formData.append('image', file);
+                }
+
+                await addShop(formData);
+                await deletePendingShop(Number(shop.id));
+                successCount++;
+            } catch (err) {
+                console.error("Sync failed for shop:", shop.formData.name, err);
+                failCount++;
+            }
+            setSyncProgress(Math.round(((i + 1) / pendingShops.length) * 100));
+        }
+
+        setIsSyncing(false);
+        await checkPendingShops();
+
+        if (failCount === 0) {
+            alert(`Successfully synced ${successCount} shops!`);
+        } else {
+            alert(`Sync completed with issues. ${successCount} synced, ${failCount} failed. Check console for details.`);
         }
     };
 
@@ -275,6 +337,24 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
             <div className="flex flex-col md:flex-row flex-1 overflow-hidden relative">
                 {/* Sidebar / Form Area */}
                 <div className={`w-full md:w-1/3 p-4 bg-gray-50 overflow-y-auto z-10 shadow-xl border-r border-gray-200 transition-all duration-300 md:block ${mobileShowSidebar ? 'block' : 'hidden'}`}>
+
+                    {pendingShops.length > 0 && (
+                        <div className="mb-4 p-4 bg-orange-100 border border-orange-200 rounded-lg shadow-sm">
+                            <div className="flex items-center justify-between">
+                                <span className="text-orange-800 font-bold text-sm">
+                                    ⚠️ {pendingShops.length} shops pending sync
+                                </span>
+                                <button
+                                    onClick={handleSync}
+                                    disabled={isSyncing}
+                                    className="bg-orange-600 text-white px-3 py-1 rounded text-xs font-bold hover:bg-orange-700 disabled:bg-orange-400 flex items-center gap-1"
+                                >
+                                    {isSyncing ? <Spinner /> : null}
+                                    {isSyncing ? `Syncing ${syncProgress}%` : 'Sync Now'}
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     {isViewMode ? (
                         <div className="space-y-4">
@@ -399,6 +479,11 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
                                 onSubmit={handleShopSubmit}
                                 initialData={editingShop}
                                 onCancel={editingShop ? handleCancelEdit : undefined}
+                                onOfflineSaveSuccess={() => {
+                                    setActiveTab('view');
+                                    setViewMode('list');
+                                    checkPendingShops();
+                                }}
                             />
                             {!editingShop && (
                                 <div className="mt-8">
@@ -488,8 +573,8 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
                             {/* Shop Detail Modal */}
                             {selectedShop && (
                                 <div className="absolute inset-0 z-[1100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setSelectedShop(null)}>
-                                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-                                        <div className="relative h-64 bg-black shrink-0">
+                                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[95vh] md:max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                                        <div className="relative h-48 md:h-64 bg-black shrink-0">
                                             {selectedShop.imageUrl ? (
                                                 <>
                                                     <img
@@ -617,7 +702,7 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
                                                 </div>
                                             </div>
 
-                                            <div className="mt-6">
+                                            <div className="mt-6 flex flex-col gap-2">
                                                 <button
                                                     onClick={() => {
                                                         setViewMode('map');
@@ -626,6 +711,12 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
                                                     className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
                                                 >
                                                     View Location on Map
+                                                </button>
+                                                <button
+                                                    onClick={() => setSelectedShop(null)}
+                                                    className="w-full bg-gray-100 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-200 transition-colors md:hidden"
+                                                >
+                                                    Close
                                                 </button>
                                             </div>
                                         </div>
