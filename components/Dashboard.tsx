@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import dynamic from 'next/dynamic';
 import ShopForm from './ShopForm';
 import LogoutButton from './LogoutButton';
@@ -571,163 +572,166 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
                             )}
 
                             {/* Shop Detail Modal */}
-                            {selectedShop && (
-                                <div className="absolute inset-0 z-[1100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setSelectedShop(null)}>
-                                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[95vh] md:max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-                                        <div className="relative h-48 md:h-64 bg-black shrink-0">
-                                            {selectedShop.imageUrl ? (
-                                                <>
-                                                    <img
-                                                        src={selectedShop.imageUrl}
-                                                        alt={selectedShop.name}
-                                                        className="w-full h-full object-contain cursor-zoom-in"
-                                                        onClick={() => setFullScreenImage(selectedShop.imageUrl || null)}
-                                                    />
-                                                    <div className="absolute bottom-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded pointer-events-none">
-                                                        Click to expand
-                                                    </div>
-                                                </>
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-gray-400">
-                                                    No Image Available
-                                                </div>
-                                            )}
-                                            <button
-                                                onClick={() => setSelectedShop(null)}
-                                                className="absolute top-2 right-2 bg-white/80 p-1 rounded-full hover:bg-white text-gray-800"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                </svg>
-                                            </button>
-                                        </div>
-                                        <div className="p-6 overflow-y-auto">
-                                            <div className="flex justify-between items-start mb-4">
-                                                <h2 className="text-2xl font-bold text-gray-900">{selectedShop.name}</h2>
-                                                {(userRole === 'ADMIN' || userRole === 'REP') && (
-                                                    <div className="flex gap-2">
-                                                        {userRole === 'ADMIN' && (
-                                                            <button
-                                                                onClick={async () => {
-                                                                    if (confirm(`Are you sure you want to ${selectedShop.isBlacklisted ? 'remove from blacklist' : 'blacklist'} this shop?`)) {
-                                                                        try {
-                                                                            await toggleShopBlacklist(selectedShop.id);
-                                                                            setSelectedShop(prev => prev ? { ...prev, isBlacklisted: !prev.isBlacklisted } : null);
-                                                                        } catch (e) {
-                                                                            alert("Failed to toggle blacklist status");
-                                                                        }
-                                                                    }
-                                                                }}
-                                                                className={`text-xs font-semibold px-3 py-1 rounded border ${selectedShop.isBlacklisted ? 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200' : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'}`}
-                                                            >
-                                                                {selectedShop.isBlacklisted ? 'Unblacklist' : 'Blacklist'}
-                                                            </button>
-                                                        )}
-                                                        <button
-                                                            onClick={() => handleEditClick(selectedShop)}
-                                                            className="text-blue-600 hover:text-blue-800 text-sm font-semibold border border-blue-200 bg-blue-50 px-3 py-1 rounded hover:bg-blue-100"
-                                                        >
-                                                            Edit
-                                                        </button>
-                                                        {userRole === 'ADMIN' && (
-                                                            <button
-                                                                onClick={async () => {
-                                                                    if (window.confirm("Are you sure you want to delete this shop? This cannot be undone.")) {
-                                                                        try {
-                                                                            await deleteShop(selectedShop.id);
-                                                                            setSelectedShop(null);
-                                                                        } catch (e) {
-                                                                            alert("Failed to delete shop");
-                                                                        }
-                                                                    }
-                                                                }}
-                                                                className="text-red-600 hover:text-red-800 text-sm font-semibold border border-red-200 bg-red-50 px-3 py-1 rounded hover:bg-red-100"
-                                                            >
-                                                                Delete
-                                                            </button>
-                                                        )}
+                            {selectedShop && typeof document !== 'undefined' && createPortal(
+                                <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4" onClick={() => setSelectedShop(null)}>
+                                    <div className="bg-white rounded-t-2xl md:rounded-xl shadow-2xl w-full max-w-lg max-h-[90dvh] md:max-h-[90vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 md:zoom-in-95 duration-200 relative" onClick={e => e.stopPropagation()}>
+                                        <button
+                                            onClick={() => setSelectedShop(null)}
+                                            className="absolute top-4 right-4 z-50 bg-black/60 hover:bg-black/80 text-white p-2 rounded-full backdrop-blur-md transition-colors"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                        <div className="overflow-y-auto flex-1 w-full min-h-0 relative z-10">
+                                            <div className="relative h-56 md:h-64 bg-black shrink-0 w-full z-10">
+                                                {selectedShop.imageUrl ? (
+                                                    <>
+                                                        <img
+                                                            src={selectedShop.imageUrl}
+                                                            alt={selectedShop.name}
+                                                            className="w-full h-full object-contain cursor-zoom-in"
+                                                            onClick={() => setFullScreenImage(selectedShop.imageUrl || null)}
+                                                        />
+                                                        <div className="absolute bottom-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded pointer-events-none">
+                                                            Click to expand
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                                        No Image Available
                                                     </div>
                                                 )}
                                             </div>
+                                            <div className="p-6">
+                                                <div className="flex justify-between items-start mb-4">
+                                                    <h2 className="text-2xl font-bold text-gray-900">{selectedShop.name}</h2>
+                                                    {(userRole === 'ADMIN' || userRole === 'REP') && (
+                                                        <div className="flex gap-2">
+                                                            {userRole === 'ADMIN' && (
+                                                                <button
+                                                                    onClick={async () => {
+                                                                        if (confirm(`Are you sure you want to ${selectedShop.isBlacklisted ? 'remove from blacklist' : 'blacklist'} this shop?`)) {
+                                                                            try {
+                                                                                await toggleShopBlacklist(selectedShop.id);
+                                                                                setSelectedShop(prev => prev ? { ...prev, isBlacklisted: !prev.isBlacklisted } : null);
+                                                                            } catch (e) {
+                                                                                alert("Failed to toggle blacklist status");
+                                                                            }
+                                                                        }
+                                                                    }}
+                                                                    className={`text-xs font-semibold px-3 py-1 rounded border ${selectedShop.isBlacklisted ? 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200' : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'}`}
+                                                                >
+                                                                    {selectedShop.isBlacklisted ? 'Unblacklist' : 'Blacklist'}
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                onClick={() => handleEditClick(selectedShop)}
+                                                                className="text-blue-600 hover:text-blue-800 text-sm font-semibold border border-blue-200 bg-blue-50 px-3 py-1 rounded hover:bg-blue-100"
+                                                            >
+                                                                Edit
+                                                            </button>
+                                                            {userRole === 'ADMIN' && (
+                                                                <button
+                                                                    onClick={async () => {
+                                                                        if (window.confirm("Are you sure you want to delete this shop? This cannot be undone.")) {
+                                                                            try {
+                                                                                await deleteShop(selectedShop.id);
+                                                                                setSelectedShop(null);
+                                                                            } catch (e) {
+                                                                                alert("Failed to delete shop");
+                                                                            }
+                                                                        }
+                                                                    }}
+                                                                    className="text-red-600 hover:text-red-800 text-sm font-semibold border border-red-200 bg-red-50 px-3 py-1 rounded hover:bg-red-100"
+                                                                >
+                                                                    Delete
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
 
-                                            <div className="space-y-3">
-                                                {selectedShop.isBlacklisted && (
-                                                    <div className="bg-red-50 border border-red-200 text-red-800 px-3 py-2 rounded text-center font-bold mb-4">
-                                                        ⚠️ THIS SHOP IS BLACKLISTED
+                                                <div className="space-y-3">
+                                                    {selectedShop.isBlacklisted && (
+                                                        <div className="bg-red-50 border border-red-200 text-red-800 px-3 py-2 rounded text-center font-bold mb-4">
+                                                            ⚠️ THIS SHOP IS BLACKLISTED
+                                                        </div>
+                                                    )}
+                                                    <div className="flex justify-between border-b pb-2">
+                                                        <span className="text-gray-600">Owner</span>
+                                                        <span className="font-medium">{selectedShop.ownerName}</span>
                                                     </div>
-                                                )}
-                                                <div className="flex justify-between border-b pb-2">
-                                                    <span className="text-gray-600">Owner</span>
-                                                    <span className="font-medium">{selectedShop.ownerName}</span>
-                                                </div>
-                                                <div className="flex justify-between border-b pb-2">
-                                                    <span className="text-gray-600">Contact</span>
-                                                    <span className="font-medium text-blue-600">
-                                                        <a href={`tel:${selectedShop.contactNumber}`}>{selectedShop.contactNumber}</a>
-                                                    </span>
-                                                </div>
-                                                <div className="flex justify-between border-b pb-2">
-                                                    <span className="text-gray-600">Payment</span>
-                                                    <div className="text-right">
-                                                        <span className={`font-medium px-2 py-0.5 rounded text-sm ${getPaymentColor(selectedShop.paymentMethod)}`}>
-                                                            {selectedShop.paymentMethod}
+                                                    <div className="flex justify-between border-b pb-2">
+                                                        <span className="text-gray-600">Contact</span>
+                                                        <span className="font-medium text-blue-600">
+                                                            <a href={`tel:${selectedShop.contactNumber}`}>{selectedShop.contactNumber}</a>
                                                         </span>
-                                                        {selectedShop.paymentMethod === 'CREDIT' && selectedShop.creditPeriod && (
-                                                            <div className="text-xs text-gray-500 mt-1">({selectedShop.creditPeriod} Days Credit)</div>
-                                                        )}
+                                                    </div>
+                                                    <div className="flex justify-between border-b pb-2">
+                                                        <span className="text-gray-600">Payment</span>
+                                                        <div className="text-right">
+                                                            <span className={`font-medium px-2 py-0.5 rounded text-sm ${getPaymentColor(selectedShop.paymentMethod)}`}>
+                                                                {selectedShop.paymentMethod}
+                                                            </span>
+                                                            {selectedShop.paymentMethod === 'CREDIT' && selectedShop.creditPeriod && (
+                                                                <div className="text-xs text-gray-500 mt-1">({selectedShop.creditPeriod} Days Credit)</div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex justify-between border-b pb-2">
+                                                        <span className="text-gray-600">Payment Status</span>
+                                                        <span className="flex items-center gap-2 font-medium text-sm">
+                                                            <div className={`w-2.5 h-2.5 rounded-full ${getStatusColor(selectedShop.paymentStatus)}`} />
+                                                            {selectedShop.paymentStatus.replace(/_/g, ' ')}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex justify-between border-b pb-2">
+                                                        <span className="text-gray-600">Avg Bill</span>
+                                                        <span className="font-medium font-mono">{selectedShop.avgBillValue.toLocaleString()}</span>
+                                                    </div>
+                                                    <div className="flex justify-between pt-2">
+                                                        <span className="text-gray-600">Location</span>
+                                                        <span className="text-sm font-mono bg-gray-100 px-2 rounded">
+                                                            {selectedShop.latitude.toFixed(5)}, {selectedShop.longitude.toFixed(5)}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex justify-between border-t pt-2 mt-2">
+                                                        <span className="text-gray-600">Last Updated</span>
+                                                        <span className="font-medium text-sm">
+                                                            {selectedShop.updatedAt ? new Date(selectedShop.updatedAt).toLocaleDateString() : 'N/A'}
+                                                        </span>
                                                     </div>
                                                 </div>
-                                                <div className="flex justify-between border-b pb-2">
-                                                    <span className="text-gray-600">Payment Status</span>
-                                                    <span className="flex items-center gap-2 font-medium text-sm">
-                                                        <div className={`w-2.5 h-2.5 rounded-full ${getStatusColor(selectedShop.paymentStatus)}`} />
-                                                        {selectedShop.paymentStatus.replace(/_/g, ' ')}
-                                                    </span>
-                                                </div>
-                                                <div className="flex justify-between border-b pb-2">
-                                                    <span className="text-gray-600">Avg Bill</span>
-                                                    <span className="font-medium font-mono">{selectedShop.avgBillValue.toLocaleString()}</span>
-                                                </div>
-                                                <div className="flex justify-between pt-2">
-                                                    <span className="text-gray-600">Location</span>
-                                                    <span className="text-sm font-mono bg-gray-100 px-2 rounded">
-                                                        {selectedShop.latitude.toFixed(5)}, {selectedShop.longitude.toFixed(5)}
-                                                    </span>
-                                                </div>
-                                                <div className="flex justify-between border-t pt-2 mt-2">
-                                                    <span className="text-gray-600">Last Updated</span>
-                                                    <span className="font-medium text-sm">
-                                                        {selectedShop.updatedAt ? new Date(selectedShop.updatedAt).toLocaleDateString() : 'N/A'}
-                                                    </span>
-                                                </div>
-                                            </div>
 
-                                            <div className="mt-6 flex flex-col gap-2">
-                                                <button
-                                                    onClick={() => {
-                                                        setViewMode('map');
-                                                        setSelectedShop(null);
-                                                    }}
-                                                    className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
-                                                >
-                                                    View Location on Map
-                                                </button>
-                                                <button
-                                                    onClick={() => setSelectedShop(null)}
-                                                    className="w-full bg-gray-100 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-200 transition-colors md:hidden"
-                                                >
-                                                    Close
-                                                </button>
+                                                <div className="mt-6 flex flex-col gap-2">
+                                                    <button
+                                                        onClick={() => {
+                                                            setViewMode('map');
+                                                            setSelectedShop(null);
+                                                        }}
+                                                        className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                                                    >
+                                                        View Location on Map
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setSelectedShop(null)}
+                                                        className="w-full bg-gray-100 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-200 transition-colors md:hidden"
+                                                    >
+                                                        Close
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
+                                </div>,
+                                document.body
                             )}
 
                             {/* Full Screen Image Modal */}
-                            {fullScreenImage && (
+                            {fullScreenImage && typeof document !== 'undefined' && createPortal(
                                 <div
-                                    className="fixed inset-0 z-[1200] bg-black/90 backdrop-blur flex items-center justify-center p-4 cursor-zoom-out"
+                                    className="fixed inset-0 z-[10000] bg-black/90 backdrop-blur flex items-center justify-center p-4 cursor-zoom-out"
                                     onClick={() => setFullScreenImage(null)}
                                 >
                                     <button
@@ -743,7 +747,8 @@ export default function Dashboard({ routes, shops, userRole, username, lorries }
                                         alt="Full Screen"
                                         className="max-h-full max-w-full object-contain"
                                     />
-                                </div>
+                                </div>,
+                                document.body
                             )}
                         </>
                     ) : (
